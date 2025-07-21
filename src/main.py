@@ -8,6 +8,7 @@ from utils.image_types import ImageFileInfo
 from utils.logger import log_to_listbox
 from typing import List, Optional
 
+
 class MainApplication:
     def __init__(self, root):
         self.root = root
