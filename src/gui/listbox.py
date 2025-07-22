@@ -60,16 +60,17 @@ class ImageListBox(Frame):
         if not os.path.isdir(directory):
             return
         image_exts = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp')
+        video_exts = ('.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm')
         from utils.file_utils import get_image_file_info
         for fname in os.listdir(directory):
-            if fname.lower().endswith(image_exts):
-                fpath = os.path.join(directory, fname)
-                try:
+            fpath = os.path.join(directory, fname)
+            ext = os.path.splitext(fname)[1].lower()
+            try:
+                if ext in image_exts:
                     info = get_image_file_info(directory, fname)
                     size = info.size if info else os.path.getsize(fpath)
                     ctime = datetime.datetime.fromtimestamp(os.path.getctime(fpath)).strftime('%Y-%m-%d %H:%M:%S')
                     mtime = datetime.datetime.fromtimestamp(os.path.getmtime(fpath)).strftime('%Y-%m-%d %H:%M:%S')
-                    # Inserta fila con columnas fijas, EXIF y nuevas vacías
                     values = [
                         fname,
                         size,
@@ -82,9 +83,23 @@ class ImageListBox(Frame):
                         info.nuevo_nombre if info else '',
                         info.camera_model if info and info.camera_model else ''
                     ]
-                    self.tree.insert('', 'end', values=values)
-                except Exception:
-                    pass
+                elif ext in video_exts:
+                    size = os.path.getsize(fpath)
+                    ctime = datetime.datetime.fromtimestamp(os.path.getctime(fpath)).strftime('%Y-%m-%d %H:%M:%S')
+                    mtime = datetime.datetime.fromtimestamp(os.path.getmtime(fpath)).strftime('%Y-%m-%d %H:%M:%S')
+                    # Para videos, no hay EXIF ni modelo
+                    values = [
+                        fname,
+                        size,
+                        ctime,
+                        mtime,
+                        '', '', '', '', '', ''
+                    ]
+                else:
+                    continue
+                self.tree.insert('', 'end', values=values)
+            except Exception:
+                pass
         # Asegura que todas las columnas sean ordenables
         for col in self.tree['columns']:
             self.tree.heading(col, command=lambda c=col: self.sort_by_column(c, False))

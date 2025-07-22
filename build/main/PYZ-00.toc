@@ -601,6 +601,9 @@
   ('gui.treeview',
    'C:\\Users\\egayosoa\\Desktop\\@repos\\afotorelocate\\src\\gui\\treeview.py',
    'PYMODULE'),
+  ('gui.ui_helpers',
+   'C:\\Users\\egayosoa\\Desktop\\@repos\\afotorelocate\\src\\gui\\ui_helpers.py',
+   'PYMODULE'),
   ('gzip',
    'C:\\Program '
    'Files\\WindowsApps\\PythonSoftwareFoundation.Python.3.13_3.13.1520.0_x64__qbz5n2kfra8p0\\Lib\\gzip.py',

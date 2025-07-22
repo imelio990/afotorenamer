@@ -67,8 +67,10 @@ def calcular_nuevo_nombre(fname: str, min_date: Optional[datetime.datetime], cam
     base, ext = os.path.splitext(fname)
     if min_date:
         fecha_str = min_date.strftime("%Y%m%d_%H%M%S")
-        # Si el nombre ya empieza por una fecha en formato yyyymmdd_hh24miss_, la quitamos
-        base = re.sub(r'^\d{8}_\d{6}_', '', base)
+        # Elimina cualquier patrón de fecha al principio: yyyymmddhhmiss o yyyymmdd_hhmiss
+        base = re.sub(r'^(\d{8}_\d{6}|\d{8}\d{6}|\d{8}_\d{6}_|\d{8}\d{6}_|\d{8}_\d{6}-|\d{8}\d{6}-)', '', base)
+        # También elimina si hay un guion bajo o guion tras la fecha
+        base = re.sub(r'^(\d{8}_\d{6}[_-]?)', '', base)
         # Solo añade el modelo si existe
         cam_info = ""
         if camera_model:
@@ -86,7 +88,13 @@ def mover_archivo(info: ImageFileInfo, directory: str, log_func) -> bool:
     if not info.subdir or not info.nuevo_nombre:
         log_func(f"Faltan datos para {info.fname}, omitiendo.")
         return False
+    # Forzar formato yyyy_mm para el subdirectorio
+    import re
     subdir = str(info.subdir)
+    # Si info.subdir es una fecha, conviértela a yyyy_mm
+    match = re.match(r"(\d{4})[-_/]?(\d{2})", subdir)
+    if match:
+        subdir = f"{match.group(1)}_{match.group(2)}"
     src_path = os.path.join(directory, info.fname)
 
     # --- Nueva lógica para evitar subdirectorio hijo ---

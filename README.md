@@ -1,6 +1,18 @@
-# Python Treeview Image Viewer
 
-This project is a simple GUI application that allows users to browse the directory structure of their machine and view image files within selected directories. It utilizes the `tkinter` library for the graphical interface.
+# afotorelocate: Organizador y Renombrador de Fotos y Videos
+
+Este proyecto es una aplicación gráfica para organizar, visualizar y renombrar archivos de imagen y video en tu equipo. Utiliza la biblioteca `tkinter` para la interfaz y permite automatizar el proceso de clasificación y renombrado de archivos multimedia según sus fechas y metadatos.
+
+Visualiza la estructura de carpetas en tu equipo mediante un panel tipo árbol (Treeview).
+Para imágenes, extrae fechas de captura, digitalización y otros datos EXIF relevantes. Para videos, usa fechas de archivo.
+
+Renombra archivos para evitar duplicados y mejorar la organización: renombra los archivos colocando la fecha al inicio del nombre, eliminando cualquier fecha previa y opcionalmente añadiendo el modelo de cámara.
+Agrupa automáticamente archivos en carpetas mensuales: mueve los archivos a subdirectorios de mes (formato `yyyy_mm`) dentro del directorio elegido, agrupando automáticamente por fecha.
+
+El botón "Scan" busca recursivamente todos los archivos válidos en los subdirectorios y los muestra en la lista para su procesamiento.
+
+
+
 
 ## Project Structure
 
