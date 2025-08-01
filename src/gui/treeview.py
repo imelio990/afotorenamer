@@ -79,35 +79,53 @@ class DirectoryTreeView(Frame):
         if not path or not os.path.exists(path):
             return
 
+        # Normalizar la ruta
+        path = os.path.normpath(path)
+        
         # Construye la lista de rutas parciales para cada nivel
-        parts = path.strip("\\").split("\\")
-        if not parts:
+        parts = []
+        current = path
+        while current and current != os.path.dirname(current):
+            parts.insert(0, current)
+            current = os.path.dirname(current)
+        
+        # Agregar la raíz si no está
+        if parts and not parts[0].endswith(':\\'):
+            root = os.path.splitdrive(path)[0] + '\\'
+            if root not in parts:
+                parts.insert(0, root)
+
+        self.expand_path_recursively(parts, 0, '')
+
+    def expand_path_recursively(self, path_parts, index, parent):
+        """Expande recursivamente cada nivel del path"""
+        if index >= len(path_parts):
             return
-
-        # Ejemplo: C:\Users\egayosoa\Desktop -> ['C:', 'Users', 'egayosoa', 'Desktop']
-        current_path = parts[0] + "\\"
-        path_levels = [current_path]
-        for part in parts[1:]:
-            current_path = os.path.join(current_path, part)
-            path_levels.append(current_path)
-
-        def expand_level(level=0, parent=''):
-            if level >= len(path_levels):
-                return
-            target_path = path_levels[level]
-            for child in self.tree.get_children(parent):
-                if self.tree.set(child, 'fullpath') == target_path:
-                    self.tree.item(child, open=True)
-                    self.on_open(None)  # Cargar subdirectorios
-                    if level == len(path_levels) - 1:
-                        self.tree.selection_set(child)
-                        self.tree.see(child)
-                    else:
-                        # Espera a que los hijos se carguen antes de expandir el siguiente nivel
-                        self.after(150, lambda l=level+1, p=child: expand_level(l, p))
-                    break
-
-        expand_level()
+        
+        target_path = path_parts[index]
+        
+        # Buscar el nodo correspondiente
+        found_node = None
+        for child in self.tree.get_children(parent):
+            child_path = self.tree.set(child, 'fullpath')
+            if child_path == target_path:
+                found_node = child
+                break
+        
+        if found_node:
+            # Si es el último nivel, seleccionarlo
+            if index == len(path_parts) - 1:
+                self.tree.selection_set(found_node)
+                self.tree.see(found_node)
+                self.tree.focus(found_node)
+            else:
+                # Expandir este nodo y continuar con el siguiente nivel
+                self.tree.item(found_node, open=True)
+                # Simular el evento de apertura para cargar los subdirectorios
+                self.tree.focus(found_node)
+                self.on_open(None)
+                # Continuar con el siguiente nivel después de un pequeño delay
+                self.after(100, lambda: self.expand_path_recursively(path_parts, index + 1, found_node))
 
     def pack(self, *args, **kwargs):
         super().pack(*args, **kwargs)

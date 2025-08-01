@@ -43,7 +43,7 @@ def get_image_file_info(directory: str, fname: str) -> Optional[ImageFileInfo]:
                 if tag_name == "Model" and value:
                     camera_model = value
         min_date = min(all_dates) if all_dates else None
-        subdir = min_date.strftime("%Y%m") if min_date else None
+        subdir = min_date.strftime("%Y_%m") if min_date else None
         nuevo_nombre = calcular_nuevo_nombre(fname, min_date, camera_make, camera_model)
         # Incluye el modelo en el objeto para mostrarlo en el Treeview
         return ImageFileInfo(
@@ -95,12 +95,22 @@ def mover_archivo(info: ImageFileInfo, directory: str, log_func) -> bool:
     match = re.match(r"(\d{4})[-_/]?(\d{2})", subdir)
     if match:
         subdir = f"{match.group(1)}_{match.group(2)}"
-    src_path = os.path.join(directory, info.fname)
+    
+    # Buscar el archivo original en el directorio base o subdirectorios
+    src_path = None
+    for root, _, files in os.walk(directory):
+        if info.fname in files:
+            src_path = os.path.join(root, info.fname)
+            break
+    
+    if not src_path or not os.path.exists(src_path):
+        log_func(f"No se encontró el archivo origen: {info.fname}")
+        return False
 
     # --- Nueva lógica para evitar subdirectorio hijo ---
-    # Si el directorio actual ya es yyyymm, y el subdir destino es otro yyyymm, muévelo como hermano
+    # Si el directorio actual ya es yyyy_mm, y el subdir destino es otro yyyy_mm, muévelo como hermano
     current_dirname = os.path.basename(directory)
-    if re.fullmatch(r"\d{6}", current_dirname):
+    if re.fullmatch(r"\d{4}_\d{2}", current_dirname):
         # Si el subdir destino es diferente al actual, sube un nivel y ponlo como hermano
         if subdir != current_dirname:
             dest_dir = os.path.join(os.path.dirname(directory), subdir)
@@ -109,6 +119,7 @@ def mover_archivo(info: ImageFileInfo, directory: str, log_func) -> bool:
             return False
     else:
         dest_dir = os.path.join(directory, subdir)
+    
     os.makedirs(dest_dir, exist_ok=True)
     base, ext = os.path.splitext(info.nuevo_nombre)
     dest_path = os.path.join(dest_dir, info.nuevo_nombre)
@@ -116,10 +127,17 @@ def mover_archivo(info: ImageFileInfo, directory: str, log_func) -> bool:
     while os.path.exists(dest_path):
         dest_path = os.path.join(dest_dir, f"{base}_{idx}{ext}")
         idx += 1
+    
+    # Mostrar paths completos en el log
+    log_func(f"Moviendo archivo:")
+    log_func(f"  Origen: {src_path}")
+    log_func(f"  Destino: {dest_path}")
+    
     try:
         shutil.move(src_path, dest_path)
-        log_func(f"Movido: {src_path} -> {dest_path}")
+        log_func(f"✓ Movido exitosamente: {os.path.basename(src_path)} -> {os.path.basename(dest_path)}")
         return True
     except Exception as e:
-        log_func(f"Error al mover {info.fname}: {e}")
+        log_func(f"✗ Error al mover {info.fname}: {e}")
+        log_func(f"  Detalles del error: {type(e).__name__}")
         return False

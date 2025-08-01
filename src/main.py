@@ -7,6 +7,7 @@ from gui.ui_helpers import show_exif_popup, listbox_home, listbox_end, listbox_p
 from utils.file_utils import get_image_file_info, mover_archivo
 from utils.image_types import ImageFileInfo
 from utils.logger import log_to_listbox
+from utils.config import get_last_directory, save_last_directory
 from typing import List, Optional
 
 
@@ -107,6 +108,9 @@ class MainApplication:
         self.listbox.tree.bind("<Next>", lambda e: listbox_page_down(self.listbox.tree))
         self.listbox.tree.bind("<Prior>", lambda e: listbox_page_up(self.listbox.tree))
 
+        # Cargar el último directorio guardado
+        self.load_last_directory()
+
     def on_listbox_home(self, event):
         items = self.listbox.tree.get_children()
         if items:
@@ -158,6 +162,8 @@ class MainApplication:
             self.current_directory = directory
             self.listbox.update_listbox(directory)
             self.log_message(f"Directorio seleccionado: {directory}")
+            # Guardar el directorio seleccionado en la configuración
+            save_last_directory(directory)
 
     def log_message(self, message: str):
         log_to_listbox(self.log_listbox, message)
@@ -175,6 +181,8 @@ class MainApplication:
             for fname in files:
                 ext = os.path.splitext(fname)[1].lower()
                 fpath = os.path.join(root, fname)
+                # Calcular ruta relativa desde el directorio base
+                rel_path = os.path.relpath(fpath, directory)
                 try:
                     if ext in image_exts:
                         info = get_image_file_info(root, fname)
@@ -182,7 +190,7 @@ class MainApplication:
                         ctime = datetime.datetime.fromtimestamp(os.path.getctime(fpath)).strftime('%Y-%m-%d %H:%M:%S')
                         mtime = datetime.datetime.fromtimestamp(os.path.getmtime(fpath)).strftime('%Y-%m-%d %H:%M:%S')
                         values = [
-                            fname,
+                            rel_path,  # Usar ruta relativa en lugar de solo el nombre
                             size,
                             ctime,
                             mtime,
@@ -199,7 +207,7 @@ class MainApplication:
                         mtime = datetime.datetime.fromtimestamp(os.path.getmtime(fpath)).strftime('%Y-%m-%d %H:%M:%S')
                         # Para videos, no hay EXIF ni modelo
                         values = [
-                            fname,
+                            rel_path,  # Usar ruta relativa en lugar de solo el nombre
                             size,
                             ctime,
                             mtime,
@@ -224,38 +232,74 @@ class MainApplication:
         self.root.config(cursor="watch")
         self.root.update()
         try:
+            self.log_message(f"Iniciando renombrado en directorio: {directory}")
+            self.log_message(f"Archivos a procesar: {len(selected)}")
+            
             for iid in selected:
                 values = list(self.listbox.tree.item(iid)['values'])
-                fname = values[0]
-                # Buscar el path original recorriendo los subdirectorios
-                found_path = None
-                for root, _, files in os.walk(directory):
-                    if fname in files:
-                        found_path = os.path.join(root, fname)
-                        break
-                if not found_path:
-                    self.log_message(f"No se encontró el archivo {fname}")
+                rel_path = values[0]  # Ahora es la ruta relativa completa
+                fname = os.path.basename(rel_path)  # Extraer solo el nombre del archivo
+                full_path = os.path.join(directory, rel_path)  # Construir ruta completa
+                
+                self.log_message(f"Procesando: {rel_path}")
+                
+                if not os.path.exists(full_path):
+                    self.log_message(f"✗ No se encontró el archivo: {full_path}")
                     self.listbox.tree.selection_remove(iid)
                     continue
-                info = get_image_file_info(os.path.dirname(found_path), fname)
-                if info:
-                    # Forzar el destino a subdirectorio de mes dentro del directorio elegido
-                    import re
-                    subdir = str(info.subdir)
-                    match = re.match(r"(\d{4})[-_/]?(\d{2})", subdir)
-                    if match:
-                        subdir = f"{match.group(1)}_{match.group(2)}"
-                    dest_dir = os.path.join(directory, subdir)
-                    # Actualizar info.subdir para que mover_archivo lo use
-                    info.subdir = subdir
-                    mover_archivo(info, directory, self.log_message)
+                
+                # Verificar si es imagen o video para procesarlo adecuadamente
+                ext = os.path.splitext(fname)[1].lower()
+                image_exts = ('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.webp')
+                video_exts = ('.mp4', '.avi', '.mov', '.mkv', '.wmv', '.flv', '.webm')
+                
+                if ext in image_exts:
+                    info = get_image_file_info(os.path.dirname(full_path), fname)
+                    if info:
+                        # Forzar el destino a subdirectorio de mes dentro del directorio elegido
+                        import re
+                        subdir = str(info.subdir)
+                        match = re.match(r"(\d{4})[-_/]?(\d{2})", subdir)
+                        if match:
+                            subdir = f"{match.group(1)}_{match.group(2)}"
+                        # Actualizar info.subdir para que mover_archivo lo use
+                        info.subdir = subdir
+                        success = mover_archivo(info, directory, self.log_message)
+                        if success:
+                            self.log_message(f"✓ Archivo procesado correctamente")
+                    else:
+                        self.log_message(f"✗ No se pudo obtener información EXIF de {fname}")
+                elif ext in video_exts:
+                    # Para videos, usar fechas de archivo
+                    import datetime
+                    ctime = os.path.getctime(full_path)
+                    mtime = os.path.getmtime(full_path)
+                    min_date = datetime.datetime.fromtimestamp(min(ctime, mtime))
+                    subdir = min_date.strftime("%Y_%m")
+                    nuevo_nombre = f"{min_date.strftime('%Y%m%d_%H%M%S')}_{fname}"
+                    
+                    # Crear un objeto ImageFileInfo para videos
+                    from utils.image_types import ImageFileInfo
+                    info = ImageFileInfo(
+                        fname=fname,
+                        size=os.path.getsize(full_path),
+                        ctime=ctime,
+                        mtime=mtime,
+                        subdir=subdir,
+                        nuevo_nombre=nuevo_nombre,
+                        min_date=min_date
+                    )
+                    success = mover_archivo(info, directory, self.log_message)
+                    if success:
+                        self.log_message(f"✓ Video procesado correctamente")
                 else:
-                    self.log_message(f"Faltan datos para {fname}, omitiendo.")
+                    self.log_message(f"✗ Tipo de archivo no soportado: {fname}")
+                
                 self.listbox.tree.selection_remove(iid)
         finally:
             self.root.config(cursor="")
             self.root.update()
-        self.log_message("Renombrado finalizado.")
+        self.log_message("=== Renombrado finalizado ===")
 
     def on_image_double_click(self, event):
         # Muestra toda la info EXIF disponible del archivo sobre el que se hace doble click
@@ -267,8 +311,9 @@ class MainApplication:
             self.log_message("No hay directorio seleccionado.")
             return
         values = list(self.listbox.tree.item(item)['values'])
-        fname = values[0]
-        fpath = os.path.join(directory, fname)
+        rel_path = values[0]  # Ahora es la ruta relativa completa
+        fname = os.path.basename(rel_path)
+        fpath = os.path.join(directory, rel_path)  # Usar ruta relativa para construir path completo
         try:
             from PIL import Image, ExifTags
             image = Image.open(fpath)
@@ -284,6 +329,37 @@ class MainApplication:
             show_exif_popup(self.root, fname, exif_info)
         except Exception as e:
             self.log_message(f"Error leyendo EXIF de {fname}: {e}")
+
+    def load_last_directory(self):
+        """Carga y selecciona el último directorio guardado"""
+        last_dir = get_last_directory()
+        if last_dir and os.path.exists(last_dir):
+            try:
+                # Usar after para dar tiempo a que la interfaz se inicialice completamente
+                self.root.after(500, lambda: self.restore_directory(last_dir))
+            except Exception as e:
+                self.log_message(f"Error al restaurar directorio: {e}")
+        else:
+            self.log_message("No hay directorio previo guardado o no existe")
+
+    def restore_directory(self, directory):
+        """Restaura el directorio expandiendo el treeview y seleccionándolo"""
+        try:
+            # Expandir el treeview hasta el directorio guardado y seleccionarlo
+            self.treeview.select_and_expand_path(directory)
+            # Dar un poco más de tiempo para que se complete la expansión
+            self.root.after(200, lambda: self.finalize_directory_restore(directory))
+        except Exception as e:
+            self.log_message(f"Error al expandir directorio: {e}")
+
+    def finalize_directory_restore(self, directory):
+        """Finaliza la restauración del directorio actualizando el listbox"""
+        try:
+            self.current_directory = directory
+            self.listbox.update_listbox(directory)
+            self.log_message(f"Directorio restaurado: {directory}")
+        except Exception as e:
+            self.log_message(f"Error al finalizar restauración: {e}")
 
 
 if __name__ == "__main__":
