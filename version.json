@@ -1,0 +1,54 @@
+{
+  "name": "AfoToRelocate",
+  "version": "1.1.0",
+  "description": "Organizador y renombrador de fotos y videos por fecha",
+  "author": "Usuario",
+  "build_date": "2025-08-01",
+  "executable": {
+    "filename": "AfoToRelocate.exe",
+    "size_mb": 18,
+    "platform": "Windows",
+    "dependencies_included": [
+      "Python 3.13",
+      "tkinter",
+      "PIL/Pillow",
+      "All required modules"
+    ]
+  },
+  "features": [
+    "Navegación visual de directorios",
+    "Escaneo recursivo de archivos",
+    "Extracción de metadatos EXIF",
+    "Renombrado automático con fechas",
+    "Organización en carpetas YYYY_MM",
+    "Soporte para imágenes y videos",
+    "Navegación con teclado",
+    "Interfaz intuitiva con scrollbars",
+    "Persistencia de configuración",
+    "Manejo robusto de errores"
+  ],
+  "supported_formats": {
+    "images": [".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"],
+    "videos": [".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm"]
+  },
+  "changelog": {
+    "1.1.0": [
+      "Añadido soporte para videos",
+      "Navegación con teclado (Home, End, Page Up/Down)",
+      "Scrollbars automáticos",
+      "Persistencia del último directorio seleccionado",
+      "Mejor manejo de errores con logging detallado",
+      "Reorganización del código en módulos",
+      "Búsqueda recursiva de archivos",
+      "Cursor de progreso durante operaciones"
+    ],
+    "1.0.0": [
+      "Versión inicial",
+      "Navegación de directorios con TreeView",
+      "Extracción de datos EXIF de imágenes",
+      "Renombrado automático con fechas",
+      "Organización en carpetas mensuales",
+      "Interfaz gráfica con tkinter"
+    ]
+  }
+}
